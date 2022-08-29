@@ -33,15 +33,15 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
 	local stress = Config.Consumables[itemName].stress or 0
 	local heal = Config.Consumables[itemName].heal or 0
 	local armor = Config.Consumables[itemName].armor or 0
-	if type == "drink" or type == "alcohol" then string = "Drinking " end
-	if type == "food" then string = "Eating " end
-	if type == "drug" then string = "Using " end
+	if type == "drink" or type == "alcohol" then string = "喝 " end
+	if type == "food" then string = "吃 " end
+	if type == "drug" then string = "使用 " end
 
 	if consuming then
 		cancelled = true
         if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Event already started^7, ^1Cancelling^7.") end
         LocalPlayer.state:set("inv_busy", false, true)
-		triggerNotify(nil, "Stopped "..string, "error")
+		triggerNotify(nil, "已停止 "..string, "error")
 		consuming = not consuming
 		return
 	end
@@ -69,6 +69,7 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
 
 	triggerNotify(nil, string..QBCore.Shared.Items[itemName].label.."..", "success")
 	consuming = true
+    QBCore.Functions.Progressbar('jimmy_consume_', string..QBCore.Shared.Items[itemName].label.."..", time, false, true, {disableMovement = false,disableCarMovement = false,disableMouse = false,disableCombat = true,}, {}, {}, {}, function()end, function()end)
 
     CreateThread(function()
         --Prop Spawning
@@ -83,7 +84,7 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
 
 	while consuming do
 		if time <= 0 then consuming = false end
-		if IsControlJustPressed(0, 21) then
+		if IsControlJustPressed(0, 73) then
 			consuming = false
 			cancelled = true
             LocalPlayer.state:set("inv_busy", false, true)
