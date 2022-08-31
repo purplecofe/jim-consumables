@@ -36,16 +36,18 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
 	if type == "drink" or type == "alcohol" then string = "喝 " end
 	if type == "food" then string = "吃 " end
 	if type == "drug" then string = "使用 " end
-
 	if consuming then
 		cancelled = true
         if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Event already started^7, ^1Cancelling^7.") end
         LocalPlayer.state:set("inv_busy", false, true)
-		triggerNotify(nil, "已停止 "..string, "error")
+        if Config.UseProgbar then
+            TriggerEvent("progressbar:client:cancel")
+        else
+            triggerNotify(nil, "Stopped "..string, "error")
+        end
 		consuming = not consuming
 		return
 	end
-
 	--Emote Stuff
     if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Grabbing Emote Animation Options^7...") end
 	if emote.AnimationOptions then
@@ -56,21 +58,23 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
 		elseif emote.AnimationOptions.EmoteMoving == false then	MovementType = 0
 		elseif emote.AnimationOptions.EmoteStuck then MovementType = 50
 	end
-
 	else MovementType = 0 end
     if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Checking if player is in a vehicle^7...") end
 	local InVehicle = IsPedInAnyVehicle(PlayerPedId(), true)
 	if InVehicle == 1 then MovementType = 51 end
-
 	--Load and Start animation
     if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Playing Animation^7...") end
 	loadAnimDict(animDict)
 	TaskPlayAnim(PlayerPedId(), animDict, anim, 1.0, 1.0, -1, MovementType, 0, 0, 0, 0)
 
-	triggerNotify(nil, string..QBCore.Shared.Items[itemName].label.."..", "success")
-	consuming = true
+    if Config.UseProgbar then
+        QBCore.Functions.Progressbar('jimmy_consume_', string..QBCore.Shared.Items[itemName].label.."..", time, false, false, {disableMovement = false,disableCarMovement = false,disableMouse = false,disableCombat = true,}, {}, {}, {}, function() end, function() end, itemName)
+    else
+        triggerNotify(nil, string..QBCore.Shared.Items[itemName].label.."..", "success")
+    end
     QBCore.Functions.Progressbar('jimmy_consume_', string..QBCore.Shared.Items[itemName].label.."..", time, false, true, {disableMovement = false,disableCarMovement = false,disableMouse = false,disableCombat = true,}, {}, {}, {}, function()end, function()end)
 
+	consuming = true
     CreateThread(function()
         --Prop Spawning
         if model then
@@ -81,56 +85,52 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
             destroyProp(attachProp)
         end
     end)
-
 	while consuming do
 		if time <= 0 then consuming = false end
-		if IsControlJustPressed(0, 73) then
-			consuming = false
-			cancelled = true
-            LocalPlayer.state:set("inv_busy", false, true)
-		end
-		Wait(10)
-		time = time - 10
+        if not Config.Consumables[itemName].canRun then
+            if IsControlJustPressed(0, 21) then
+                consuming = false
+                cancelled = true
+                LocalPlayer.state:set("inv_busy", false, true)
+                if Config.UseProgbar then
+                    Wait(10)
+                    TriggerEvent("progressbar:client:cancel")
+                else
+                    triggerNotify(nil, "Cancelled "..string, "error")
+                end
+            end
+        end
+        Wait(10)
+        time = time - 10
 	end
-
 	StopEntityAnim(PlayerPedId(), anim, animDict, 1.0)
     unloadAnimDict(animDict)
-
 	if not cancelled then
-
         toggleItem(false, itemName, 1)
-
-        if QBCore.Shared.Items[itemName].thirst then
-			TriggerServerEvent("QBCore:Server:SetMetaData", "thirst", QBCore.Functions.GetPlayerData().metadata["thirst"] + QBCore.Shared.Items[itemName].thirst) end
-        if QBCore.Shared.Items[itemName].hunger then
-			TriggerServerEvent("QBCore:Server:SetMetaData", "hunger", QBCore.Functions.GetPlayerData().metadata["hunger"] + QBCore.Shared.Items[itemName].hunger) end
-
+        if QBCore.Shared.Items[itemName].thirst then TriggerServerEvent("jim-consumables:server:addThirst", QBCore.Functions.GetPlayerData().metadata["thirst"] + QBCore.Shared.Items[itemName].thirst) end
+        if QBCore.Shared.Items[itemName].hunger then TriggerServerEvent("jim-consumables:server:addHunger", QBCore.Functions.GetPlayerData().metadata["hunger"] + QBCore.Shared.Items[itemName].hunger) end
 		if not QBCore.Shared.Items[itemName].thirst and not QBCore.Shared.Items[itemName].hunger then
 			local hunger = 0
 			local thirst = 0
             if Config.Consumables[itemName].stats then
                 if Config.Consumables[itemName].stats.hunger then hunger = Config.Consumables[itemName].stats.hunger end
-                TriggerServerEvent("QBCore:Server:SetMetaData", "hunger", QBCore.Functions.GetPlayerData().metadata["hunger"] + hunger)
+                TriggerServerEvent("jim-consumables:server:addHunger", QBCore.Functions.GetPlayerData().metadata["hunger"] + hunger)
                 if Config.Consumables[itemName].stats.thirst then thirst = Config.Consumables[itemName].stats.thirst end
-                TriggerServerEvent("QBCore:Server:SetMetaData", "thirst", QBCore.Functions.GetPlayerData().metadata["thirst"] + thirst)
+                TriggerServerEvent("jim-consumables:server:addThirst", QBCore.Functions.GetPlayerData().metadata["thirst"] + thirst)
             end
 		end
-
         if stress and stress ~= 0 then
             if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Reliving ^6"..stress.." ^2stress^7.") end
             TriggerServerEvent('hud:server:RelieveStress', stress)
         end
-
 		if heal and heal ~= 0 then
             if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Healing player by^7: ^6"..heal) end
             SetEntityHealth(PlayerPedId(), GetEntityHealth(PlayerPedId()) + heal)
         end
-
 		if armor and armor ~= 0 then
             if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Adding ^6"..armor.." ^2armour^7.") end
             TriggerServerEvent('hospital:server:SetArmor', (GetPedArmour(PlayerPedId()) + armor)) SetPedArmour(PlayerPedId(), (GetPedArmour(PlayerPedId()) + armor))
         end
-
 		if type == "alcohol" then
             if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Current ^4alcoholCount^7: ^6"..(alcoholCount + 1)) end
 			alcoholCount = alcoholCount + 1
@@ -141,9 +141,7 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
                 CreateThread(function() AlienEffect() end) -- Used as overdosing/too drunk effect
             end
         end
-
         stats = Config.Consumables[itemName].stats or nil
-
         if Config.Consumables[itemName].stats then
             if stats.screen then -- Screen effect activation
                 if stats.screen == "turbo" then CreateThread(function() TurboEffect() end) end
@@ -154,7 +152,6 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
                 if stats.screen == "nightvision" then CreateThread(function() NightVisionEffect() end) end
                 if stats.screen == "thermal" then CreateThread(function() ThermalEffect() end) end
             end
-
 			if stats.canOD then
                 if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Current ^4drugCount^7: ^6"..(drugCount + 1)) end
 				drugCount = drugCount + 1
@@ -168,19 +165,19 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
 			end
 			if stats.effect == "heal" then
                 if GetResourceState("ps-buffs") == "started" then exports["ps-buffs"]:AddHealthBuff((stats.time or 10000), (stats.amount or 6))
-                else CreateThread(function() HealEffect({(stats.effect.time or 10000), (stats.amount or 6)}) end) end
+                else CreateThread(function() HealEffect({(stats.time or 10000), (stats.amount or 6)}) end) end
             end
 			if stats.effect == "stamina" then
                 if GetResourceState("ps-buffs") == "started" then exports["ps-buffs"]:StaminaBuffEffect((stats.time or 10000), (stats.amount or 6))
-                else CreateThread(function() StaminaEffect({(stats.effect.time or 10000), (stats.amount or 6)}) end) end
+                else CreateThread(function() StaminaEffect({(stats.time or 10000), (stats.amount or 6)}) end) end
 			end
             if GetResourceState("ps-buffs") == "started" then   --PS-BUFFS ONLY
                 if Config.Debug then print("^5Debug^7: ^3Consume^7: ^4PS^7-^4Buffs ^2found^7, ^2hooking in to get buffs") end
-                if stats.effect == "armor" then exports["ps-buffs"]:AddArmorBuff((stats.effect.time or 10000), (stats.amount or 6)) end
+                if stats.effect == "armor" then exports["ps-buffs"]:AddArmorBuff((stats.time or 10000), (stats.amount or 6)) end
                 if stats.effect == "stress" then exports["ps-buffs"]:AddStressBuff((stats.time or 10000), (stats.amount or 6)) end
-                if stats.effect == "swimming" then exports["ps-buffs"]:SwimmingBuffEffect((stats.effect.time or 10000), (stats.amount or 6)) end
-                if stats.effect == "hacking" then exports["ps-buffs"]:AddBuff("hacking", (stats.effect.time or 10000)) end
-                if stats.effect == "intelligence" then exports["ps-buffs"]:AddBuff("intelligence", (stats.effect.time or 10000)) end
+                if stats.effect == "swimming" then exports["ps-buffs"]:SwimmingBuffEffect((stats.time or 10000), (stats.amount or 6)) end
+                if stats.effect == "hacking" then exports["ps-buffs"]:AddBuff("hacking", (stats.time or 10000)) end
+                if stats.effect == "intelligence" then exports["ps-buffs"]:AddBuff("intelligence", (stats.time or 10000)) end
                 if stats.effect == "luck" then exports["ps-buffs"]:AddBuff("luck", (stats.time or 10000)) end
                 if stats.effect == "strength" then exports["ps-buffs"]:AddBuff("strength", (stats.time or 10000)) end
             end
@@ -189,7 +186,6 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
 	end
 	cancelled = false
 	consuming = false
-
     if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Finished, unlocking inventory^7...") end
     LocalPlayer.state:set("inv_busy", false, true) TriggerEvent('inventory:client:busy:status', false) TriggerEvent('canUseInventoryAndHotbar:toggle', false)
 end)
