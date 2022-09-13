@@ -14,7 +14,7 @@ end
 local consuming = false
 local cancelled = false
 
-RegisterNetEvent('jim-consumables:Consume', function(itemName)
+RegisterNetEvent('jim-consumables:Consume', function(itemName, itemSlot)
     if Config.Debug then print("^5Debug^7: ^3Consume^7: ^2Starting event, locking inventory and grabbing data^7..") end
     LocalPlayer.state:set("inv_busy", true, true) TriggerEvent('inventory:client:busy:status', true) TriggerEvent('canUseInventoryAndHotbar:toggle', false)
 	local Player = PlayerPedId()
@@ -96,7 +96,7 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
                     Wait(10)
                     TriggerEvent("progressbar:client:cancel")
                 else
-                    triggerNotify(nil, "Cancelled "..string, "error")
+                    triggerNotify(nil, "已取消 "..string, "error")
                 end
             end
         end
@@ -106,7 +106,7 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName)
 	StopEntityAnim(PlayerPedId(), anim, animDict, 1.0)
     unloadAnimDict(animDict)
 	if not cancelled then
-        toggleItem(false, itemName, 1)
+        toggleItem(false, itemName, 1, itemSlot)
         if QBCore.Shared.Items[itemName].thirst then TriggerServerEvent("jim-consumables:server:addThirst", QBCore.Functions.GetPlayerData().metadata["thirst"] + QBCore.Shared.Items[itemName].thirst) end
         if QBCore.Shared.Items[itemName].hunger then TriggerServerEvent("jim-consumables:server:addHunger", QBCore.Functions.GetPlayerData().metadata["hunger"] + QBCore.Shared.Items[itemName].hunger) end
 		if not QBCore.Shared.Items[itemName].thirst and not QBCore.Shared.Items[itemName].hunger then
