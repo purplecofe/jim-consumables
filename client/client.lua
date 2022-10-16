@@ -40,6 +40,7 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName, itemSlot)
 	local stress = Config.Consumables[itemName].stress or 0
 	local heal = Config.Consumables[itemName].heal or 0
 	local armor = Config.Consumables[itemName].armor or 0
+    local canCancel = Config.Consumables[itemName].canCancel or true
 	if type == "drink" or type == "alcohol" then string = "喝 " end
 	if type == "food" then string = "吃 " end
 	if type == "drug" then string = "使用 " end
@@ -75,11 +76,19 @@ RegisterNetEvent('jim-consumables:Consume', function(itemName, itemSlot)
 	TaskPlayAnim(PlayerPedId(), animDict, anim, 1.0, 1.0, -1, MovementType, 0, 0, 0, 0)
 
     if Config.UseProgbar then
-        QBCore.Functions.Progressbar('jimmy_consume_', string..QBCore.Shared.Items[itemName].label.."..", time, false, false, {disableMovement = false, disableCarMovement = false, disableMouse = false, disableCombat = true,}, {}, {}, {}, function() consuming = false end, function() end, itemName)
+        QBCore.Functions.Progressbar('jimmy_consume_', string..QBCore.Shared.Items[itemName].label.."..", time, false, canCancel, {
+            disableMovement = false, 
+            disableCarMovement = false, 
+            disableMouse = false, 
+            disableCombat = true,}, {}, {}, {}, function() 
+                consuming = false 
+            end, function()
+                cancelled = true
+                consuming = false
+            end, itemName)
     else
         triggerNotify(nil, string..QBCore.Shared.Items[itemName].label.."..", "success")
     end
-    QBCore.Functions.Progressbar('jimmy_consume_', string..QBCore.Shared.Items[itemName].label.."..", time, false, true, {disableMovement = false,disableCarMovement = false,disableMouse = false,disableCombat = true,}, {}, {}, {}, function()end, function()end)
 
 	consuming = true
     CreateThread(function()
